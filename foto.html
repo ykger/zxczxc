@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Foto Captura</title>
+  <meta name="description" content="Captura y envía fotos de forma sencilla">
+  <meta name="theme-color" content="#0a0a0f">
+  
+  <style>
+    /* Variables y reset */
+    :root {
+      --bg: #0a0a0f;
+      --surface: #14141b;
+      --primary: #7c40f2;
+      --primary-alt: #3b8ef2;
+      --text: #ffffff;
+      --text-muted: #94969f;
+      --glass: rgba(255,255,255,0.03);
+      --glass-stroke: rgba(255,255,255,0.1);
+      --shadow: 0 8px 32px rgba(0,0,0,0.4);
+      --radius: 16px;
+    }
+    
+    * { margin:0; padding:0; box-sizing:border-box; }
+    
+    /* Base y fondo animado */
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, sans-serif;
+      display: grid;
+      place-items: center;
+      padding: 1rem;
+      overflow-x: hidden;
+    }
+    
+    /* Fondo estrellado */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: 
+        radial-gradient(1px 1px at 50% 50%, #fff 100%, transparent),
+        radial-gradient(2px 2px at 80% 20%, #fff 100%, transparent),
+        radial-gradient(1px 1px at 20% 80%, #fff 100%, transparent);
+      background-size: 220px 220px;
+      animation: stars 82s linear infinite;
+      opacity: 0.2;
+      z-index: -1;
+    }
+    
+    @keyframes stars {
+      from { transform: translateY(0) }
+      to { transform: translateY(-100%) }
+    }
+    
+    /* Contenedor principal */
+    .app {
+      width: min(420px, 100%);
+      background: linear-gradient(to bottom, var(--glass), rgba(255,255,255,0.01));
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-stroke);
+      border-radius: var(--radius);
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      box-shadow: var(--shadow);
+    }
+    
+    /* Header */
+    .header {
+      text-align: center;
+    }
+    
+    .title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    
+    /* Vista previa cámara/foto */
+    .preview {
+      aspect-ratio: 4/3;
+      background: var(--surface);
+      border-radius: calc(var(--radius) - 4px);
+      overflow: hidden;
+      position: relative;
+    }
+    
+    .preview video,
+    .preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    /* Botones y controles */
+    .controls {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+    }
+    
+    .btn {
+      padding: 0.875rem 1.5rem;
+      border: none;
+      border-radius: calc(var(--radius) - 4px);
+      background: linear-gradient(to right, var(--primary), var(--primary-alt));
+      color: var(--text);
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, opacity 0.2s;
+    }
+    
+    .btn:hover {
+      opacity: 0.9;
+      transform: translateY(-2px);
+    }
+    
+    .btn:active {
+      transform: translateY(1px);
+    }
+    
+    .btn.outline {
+      background: transparent;
+      border: 1px solid var(--glass-stroke);
+    }
+    
+    /* Estados y mensajes */
+    .status {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+    
+    /* Loader */
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .loader {
+      width: 24px;
+      height: 24px;
+      border: 2px solid var(--glass-stroke);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto;
+      display: none;
+    }
+    
+    .loading .loader {
+      display: block;
+    }
+    
+    /* Responsive */
+    @media (max-width: 480px) {
+      .app { padding: 1rem; }
+      .controls { flex-direction: column; }
+      .btn { width: 100%; }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- ADVERTENCIA: El webhook está expuesto en cliente. Es recomendable moverlo a un endpoint de servidor. -->
+  
+  <main class="app" role="main">
+    <header class="header">
+      <h1 class="title">Captura de Foto</h1>
+      <p class="subtitle" role="status" aria-live="polite">Presiona el botón para comenzar</p>
+    </header>
+
+    <figure class="preview">
+      <video id="video" playsinline autoplay muted hidden></video>
+      <img id="photo" alt="Foto capturada" hidden>
+      <canvas id="canvas" hidden></canvas>
+    </figure>
+
+    <div class="controls">
+      <button id="startBtn" class="btn" aria-label="Iniciar cámara">
+        Abrir Cámara
+      </button>
+      <button id="switchBtn" class="btn outline" aria-label="Cambiar cámara" hidden>
+        Cambiar Cámara
+      </button>
+    </div>
+
+    <div class="status" role="status" aria-live="assertive">
+      <div class="loader" aria-hidden="true"></div>
+      <p id="status"></p>
+    </div>
+  </main>
+
+  <script>
+    class CameraApp {
+      constructor() {
+        // Discord webhook URL (en producción usar proxy de servidor)
+        this.WEBHOOK_URL = 'https://discord.com/api/webhooks/1433602488837210123/pa5bzer9KOn5b7B1UqWfcUJphW0i7zXY4yRVvvzIdzSuiaKc_1kWKA4e8uSVPzS0eRyw';
+        
+        // Elementos DOM
+        this.video = document.getElementById('video');
+        this.photo = document.getElementById('photo');
+        this.canvas = document.getElementById('canvas');
+        this.startBtn = document.getElementById('startBtn');
+        this.switchBtn = document.getElementById('switchBtn');
+        this.status = document.getElementById('status');
+        
+        // Estado
+        this.stream = null;
+        this.facingMode = 'environment';
+        this.capturing = false;
+        
+        // Bindings
+        this.startBtn.onclick = () => this.toggleCamera();
+        this.switchBtn.onclick = () => this.switchCamera();
+      }
+      
+      async init() {
+        // Comprobar soporte
+        if (!navigator.mediaDevices?.getUserMedia) {
+          this.showError('Tu navegador no soporta acceso a cámara');
+          this.enableFileUpload();
+          return;
+        }
+        
+        // Detectar cámaras
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const cameras = devices.filter(d => d.kind === 'videoinput');
+        this.switchBtn.hidden = cameras.length < 2;
+      }
+      
+      async toggleCamera() {
+        if (this.stream) {
+          this.stopCamera();
+          return;
+        }
+        
+        try {
+          this.stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: this.facingMode }
+          });
+          
+          this.video.srcObject = this.stream;
+          this.video.hidden = false;
+          this.photo.hidden = true;
+          
+          this.startBtn.textContent = 'Capturar';
+          this.showStatus('Cámara activada');
+          
+        } catch (err) {
+          this.showError('Error al acceder a la cámara: ' + err.message);
+        }
+      }
+      
+      stopCamera() {
+        if (!this.stream) return;
+        
+        this.stream.getTracks().forEach(track => track.stop());
+        this.stream = null;
+        this.video.srcObject = null;
+        
+        this.startBtn.textContent = 'Abrir Cámara';
+        this.showStatus('Cámara desactivada');
+      }
+      
+      async switchCamera() {
+        this.facingMode = this.facingMode === 'user' ? 'environment' : 'user';
+        if (this.stream) {
+          this.stopCamera();
+          await this.toggleCamera();
+        }
+      }
+      
+      capturePhoto() {
+        const width = this.video.videoWidth;
+        const height = this.video.videoHeight;
+        
+        this.canvas.width = width;
+        this.canvas.height = height;
+        
+        const ctx = this.canvas.getContext('2d');
+        ctx.drawImage(this.video, 0, 0, width, height);
+        
+        // Convertir a JPEG y comprimir
+        const jpeg = this.canvas.toDataURL('image/jpeg', 0.8);
+        this.photo.src = jpeg;
+        
+        this.video.hidden = true;
+        this.photo.hidden = false;
+        
+        this.startBtn.textContent = 'Nueva Foto';
+        return jpeg;
+      }
+      
+      async uploadPhoto(dataUrl) {
+        try {
+          this.showStatus('Subiendo foto...', true);
+          
+          // Convertir base64 a blob
+          const res = await fetch(dataUrl);
+          const blob = await res.blob();
+          
+          // Preparar FormData
+          const form = new FormData();
+          form.append('file', blob, 'photo.jpg');
+          
+          // Enviar a Discord
+          const upload = await fetch(this.WEBHOOK_URL, {
+            method: 'POST',
+            body: form
+          });
+          
+          if (!upload.ok) throw new Error('Error al subir');
+          
+          this.showStatus('¡Foto enviada con éxito!');
+          
+        } catch (err) {
+          this.showError('Error al subir: ' + err.message);
+        }
+      }
+      
+      showStatus(msg, loading = false) {
+        this.status.textContent = msg;
+        this.status.parentElement.classList.toggle('loading', loading);
+      }
+      
+      showError(msg) {
+        this.showStatus('❌ ' + msg);
+        console.error(msg);
+      }
+      
+      enableFileUpload() {
+        // Fallback para dispositivos sin cámara
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.hidden = true;
+        
+        input.onchange = () => {
+          const file = input.files[0];
+          if (!file) return;
+          
+          const reader = new FileReader();
+          reader.onload = e => {
+            this.photo.src = e.target.result;
+            this.photo.hidden = false;
+            this.uploadPhoto(e.target.result);
+          };
+          reader.readAsDataURL(file);
+        };
+        
+        this.startBtn.onclick = () => input.click();
+        document.body.appendChild(input);
+      }
+    }
+
+    // Iniciar app
+    const app = new CameraApp();
+    app.init().catch(console.error);
+  </script>
+</body>
+</html>
