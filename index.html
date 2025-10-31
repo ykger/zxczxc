@@ -340,21 +340,24 @@ class CameraApp {
       const res = await fetch(dataUrl);
       const blob = await res.blob();
       
-      // Preparar FormData
+      // Preparar FormData con el formato correcto para Discord
       const form = new FormData();
-      form.append('file', blob, 'photo.jpg');
+      form.append('files[0]', blob, 'photo.jpg');
       
-      // Enviar a Discord
+      // Enviar a Discord con los headers correctos
       const upload = await fetch(this.WEBHOOK_URL, {
         method: 'POST',
-        body: form
+        body: form,
+        headers: {
+          // No incluir Content-Type, dejarlo que lo establezca automáticamente con el boundary
+        }
       });
       
-      if (!upload.ok) throw new Error('Error al subir');
+      const response = await upload.json();
+      
+      if (!upload.ok) throw new Error(`Error ${upload.status}: ${response.message || 'Error desconocido'}`);
       
       this.showStatus('¡Foto enviada con éxito!');
-      
-      // Después de subir exitosamente
       this.capturing = false;
       this.stopCamera();
       this.previewControls.classList.remove('active');
@@ -362,7 +365,9 @@ class CameraApp {
       this.startBtn.textContent = 'Tomar otra foto';
       
     } catch (err) {
+      console.error('Error detallado:', err);
       this.showError('Error al subir: ' + err.message);
+      this.cancelPreview();
     }
   }
   
