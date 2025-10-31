@@ -6,7 +6,6 @@
   <title>Foto Captura</title>
   <meta name="description" content="Captura y envía fotos de forma sencilla">
   <meta name="theme-color" content="#0a0a0f">
-
   
   <style>
     /* Variables y reset */
@@ -105,6 +104,21 @@
       justify-content: center;
     }
     
+    .controls.preview-mode {
+      justify-content: space-between;
+    }
+
+    .preview-controls {
+      display: none;
+      gap: 1rem;
+      justify-content: center;
+      margin-top: 1rem;
+    }
+
+    .preview-controls.active {
+      display: flex;
+    }
+    
     .btn {
       padding: 0.875rem 1.5rem;
       border: none;
@@ -184,11 +198,16 @@
 
     <div class="controls">
       <button id="startBtn" class="btn" aria-label="Iniciar cámara">
-        Abrir Cámara
+        Tomar Foto
       </button>
       <button id="switchBtn" class="btn outline" aria-label="Cambiar cámara" hidden>
         Cambiar Cámara
       </button>
+    </div>
+
+    <div class="preview-controls">
+      <button id="sendBtn" class="btn" aria-label="Enviar foto">Enviar</button>
+      <button id="cancelBtn" class="btn outline" aria-label="Cancelar">Cancelar</button>
     </div>
 
     <div class="status" role="status" aria-live="assertive">
@@ -198,172 +217,203 @@
   </main>
 
   <script>
-    class CameraApp {
-      constructor() {
-        // Discord webhook URL (en producción usar proxy de servidor)
-        this.WEBHOOK_URL = 'https://discord.com/api/webhooks/1433602488837210123/pa5bzer9KOn5b7B1UqWfcUJphW0i7zXY4yRVvvzIdzSuiaKc_1kWKA4e8uSVPzS0eRyw';
-        
-        // Elementos DOM
-        this.video = document.getElementById('video');
-        this.photo = document.getElementById('photo');
-        this.canvas = document.getElementById('canvas');
-        this.startBtn = document.getElementById('startBtn');
-        this.switchBtn = document.getElementById('switchBtn');
-        this.status = document.getElementById('status');
-        
-        // Estado
-        this.stream = null;
-        this.facingMode = 'environment';
-        this.capturing = false;
-        
-        // Bindings
-        this.startBtn.onclick = () => this.toggleCamera();
-        this.switchBtn.onclick = () => this.switchCamera();
-      }
-      
-      async init() {
-        // Comprobar soporte
-        if (!navigator.mediaDevices?.getUserMedia) {
-          this.showError('Tu navegador no soporta acceso a cámara');
-          this.enableFileUpload();
-          return;
-        }
-        
-        // Detectar cámaras
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const cameras = devices.filter(d => d.kind === 'videoinput');
-        this.switchBtn.hidden = cameras.length < 2;
-      }
-      
-      async toggleCamera() {
-        if (this.stream) {
-          this.stopCamera();
-          return;
-        }
-        
-        try {
-          this.stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: this.facingMode }
-          });
-          
-          this.video.srcObject = this.stream;
-          this.video.hidden = false;
-          this.photo.hidden = true;
-          
-          this.startBtn.textContent = 'Capturar';
-          this.showStatus('Cámara activada');
-          
-        } catch (err) {
-          this.showError('Error al acceder a la cámara: ' + err.message);
-        }
-      }
-      
-      stopCamera() {
-        if (!this.stream) return;
-        
-        this.stream.getTracks().forEach(track => track.stop());
-        this.stream = null;
-        this.video.srcObject = null;
-        
-        this.startBtn.textContent = 'Abrir Cámara';
-        this.showStatus('Cámara desactivada');
-      }
-      
-      async switchCamera() {
-        this.facingMode = this.facingMode === 'user' ? 'environment' : 'user';
-        if (this.stream) {
-          this.stopCamera();
-          await this.toggleCamera();
-        }
-      }
-      
-      capturePhoto() {
-        const width = this.video.videoWidth;
-        const height = this.video.videoHeight;
-        
-        this.canvas.width = width;
-        this.canvas.height = height;
-        
-        const ctx = this.canvas.getContext('2d');
-        ctx.drawImage(this.video, 0, 0, width, height);
-        
-        // Convertir a JPEG y comprimir
-        const jpeg = this.canvas.toDataURL('image/jpeg', 0.8);
-        this.photo.src = jpeg;
-        
-        this.video.hidden = true;
-        this.photo.hidden = false;
-        
-        this.startBtn.textContent = 'Nueva Foto';
-        return jpeg;
-      }
-      
-      async uploadPhoto(dataUrl) {
-        try {
-          this.showStatus('Subiendo foto...', true);
-          
-          // Convertir base64 a blob
-          const res = await fetch(dataUrl);
-          const blob = await res.blob();
-          
-          // Preparar FormData
-          const form = new FormData();
-          form.append('file', blob, 'photo.jpg');
-          
-          // Enviar a Discord
-          const upload = await fetch(this.WEBHOOK_URL, {
-            method: 'POST',
-            body: form
-          });
-          
-          if (!upload.ok) throw new Error('Error al subir');
-          
-          this.showStatus('¡Foto enviada con éxito!');
-          
-        } catch (err) {
-          this.showError('Error al subir: ' + err.message);
-        }
-      }
-      
-      showStatus(msg, loading = false) {
-        this.status.textContent = msg;
-        this.status.parentElement.classList.toggle('loading', loading);
-      }
-      
-      showError(msg) {
-        this.showStatus('❌ ' + msg);
-        console.error(msg);
-      }
-      
-      enableFileUpload() {
-        // Fallback para dispositivos sin cámara
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.hidden = true;
-        
-        input.onchange = () => {
-          const file = input.files[0];
-          if (!file) return;
-          
-          const reader = new FileReader();
-          reader.onload = e => {
-            this.photo.src = e.target.result;
-            this.photo.hidden = false;
-            this.uploadPhoto(e.target.result);
-          };
-          reader.readAsDataURL(file);
-        };
-        
-        this.startBtn.onclick = () => input.click();
-        document.body.appendChild(input);
-      }
+class CameraApp {
+  constructor() {
+    // Discord webhook URL (en producción usar proxy de servidor)
+    this.WEBHOOK_URL = 'https://discord.com/api/webhooks/1433602488837210123/pa5bzer9KOn5b7B1UqWfcUJphW0i7zXY4yRVvvzIdzSuiaKc_1kWKA4e8uSVPzS0eRyw';
+    
+    // Elementos DOM
+    this.video = document.getElementById('video');
+    this.photo = document.getElementById('photo');
+    this.canvas = document.getElementById('canvas');
+    this.startBtn = document.getElementById('startBtn');
+    this.switchBtn = document.getElementById('switchBtn');
+    this.status = document.getElementById('status');
+    
+    // Nuevos elementos
+    this.previewControls = document.querySelector('.preview-controls');
+    this.sendBtn = document.getElementById('sendBtn');
+    this.cancelBtn = document.getElementById('cancelBtn');
+    
+    // Estado
+    this.stream = null;
+    this.facingMode = 'environment';
+    this.capturing = false;
+    
+    // Bindings
+    this.startBtn.onclick = () => this.toggleCamera();
+    this.switchBtn.onclick = () => this.switchCamera();
+    this.sendBtn.onclick = () => this.uploadPhoto(this.lastCapture);
+    this.cancelBtn.onclick = () => this.cancelPreview();
+  }
+  
+  async init() {
+    // Comprobar soporte
+    if (!navigator.mediaDevices?.getUserMedia) {
+      this.showError('Tu navegador no soporta acceso a cámara');
+      this.enableFileUpload();
+      return;
     }
+    
+    // Detectar cámaras
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const cameras = devices.filter(d => d.kind === 'videoinput');
+    this.switchBtn.hidden = cameras.length < 2;
+  }
+  
+  async toggleCamera() {
+    if (this.stream) {
+      if (!this.capturing) {
+        // Tomar foto
+        this.lastCapture = this.capturePhoto();
+        this.capturing = true;
+        this.previewControls.classList.add('active');
+        this.startBtn.hidden = true;
+        this.switchBtn.hidden = true;
+        this.showStatus('¿Enviar esta foto?');
+      }
+      return;
+    }
+    
+    try {
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: this.facingMode }
+      });
+      
+      this.video.srcObject = this.stream;
+      this.video.hidden = false;
+      this.photo.hidden = true;
+      
+      this.startBtn.textContent = 'Tomar Foto';
+      this.showStatus('Cámara activada');
+      
+    } catch (err) {
+      this.showError('Error al acceder a la cámara: ' + err.message);
+    }
+  }
+  
+  stopCamera() {
+    if (!this.stream) return;
+    
+    this.stream.getTracks().forEach(track => track.stop());
+    this.stream = null;
+    this.video.srcObject = null;
+    
+    this.startBtn.textContent = 'Abrir Cámara';
+    this.showStatus('Cámara desactivada');
+  }
+  
+  async switchCamera() {
+    this.facingMode = this.facingMode === 'user' ? 'environment' : 'user';
+    if (this.stream) {
+      this.stopCamera();
+      await this.toggleCamera();
+    }
+  }
+  
+  capturePhoto() {
+    const width = this.video.videoWidth;
+    const height = this.video.videoHeight;
+    
+    this.canvas.width = width;
+    this.canvas.height = height;
+    
+    const ctx = this.canvas.getContext('2d');
+    ctx.drawImage(this.video, 0, 0, width, height);
+    
+    // Convertir a JPEG y comprimir
+    const jpeg = this.canvas.toDataURL('image/jpeg', 0.8);
+    this.photo.src = jpeg;
+    
+    this.video.hidden = true;
+    this.photo.hidden = false;
+    
+    this.startBtn.textContent = 'Nueva Foto';
+    return jpeg;
+  }
+  
+  async uploadPhoto(dataUrl) {
+    try {
+      this.showStatus('Subiendo foto...', true);
+      
+      // Convertir base64 a blob
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      
+      // Preparar FormData
+      const form = new FormData();
+      form.append('file', blob, 'photo.jpg');
+      
+      // Enviar a Discord
+      const upload = await fetch(this.WEBHOOK_URL, {
+        method: 'POST',
+        body: form
+      });
+      
+      if (!upload.ok) throw new Error('Error al subir');
+      
+      this.showStatus('¡Foto enviada con éxito!');
+      
+      // Después de subir exitosamente
+      this.capturing = false;
+      this.stopCamera();
+      this.previewControls.classList.remove('active');
+      this.startBtn.hidden = false;
+      this.startBtn.textContent = 'Tomar otra foto';
+      
+    } catch (err) {
+      this.showError('Error al subir: ' + err.message);
+    }
+  }
+  
+  cancelPreview() {
+    this.capturing = false;
+    this.video.hidden = false;
+    this.photo.hidden = true;
+    this.previewControls.classList.remove('active');
+    this.startBtn.hidden = false;
+    this.switchBtn.hidden = false;
+    this.showStatus('Cámara activada');
+  }
+  
+  showStatus(msg, loading = false) {
+    this.status.textContent = msg;
+    this.status.parentElement.classList.toggle('loading', loading);
+  }
+  
+  showError(msg) {
+    this.showStatus('❌ ' + msg);
+    console.error(msg);
+  }
+  
+  enableFileUpload() {
+    // Fallback para dispositivos sin cámara
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.hidden = true;
+    
+    input.onchange = () => {
+      const file = input.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = e => {
+        this.photo.src = e.target.result;
+        this.photo.hidden = false;
+        this.uploadPhoto(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    };
+    
+    this.startBtn.onclick = () => input.click();
+    document.body.appendChild(input);
+  }
+}
 
-    // Iniciar app
-    const app = new CameraApp();
-    app.init().catch(console.error);
+// Iniciar app
+const app = new CameraApp();
+app.init().catch(console.error);
   </script>
 </body>
 </html>
-
