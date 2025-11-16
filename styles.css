@@ -1,0 +1,304 @@
+:root{
+  --bg:#0f1113;
+  --card:#131517;
+  --muted:#9aa3b2;
+  --accent:#6ee7b7;
+  --accent-2:#8ab4ff;
+  --danger:#ff6b6b;
+  --glass: rgba(255,255,255,0.03);
+  --radius:14px;
+  --soft: 200ms;
+  --max-width:1100px;
+}
+
+/* reset & base */
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  background:
+    radial-gradient(1200px 400px at 10% 10%, rgba(255,255,255,0.02), transparent),
+    linear-gradient(180deg, rgba(255,255,255,0.01), transparent 40%),
+    var(--bg);
+  color: #e6eef8;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  padding:30px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:100vh;
+}
+
+.app{
+  width:100%;
+  max-width:var(--max-width);
+  margin:0 auto;
+  padding:20px;
+}
+
+/* Screen containers */
+.screen{display:none; position:relative}
+.screen.visible{display:block}
+.screen .card{width:100%}
+
+/* ============================
+   START SCREEN: starry background
+   Now the star layers cover the ENTIRE viewport while the start screen is visible.
+   We achieve this by using fixed-position pseudo-elements tied to the start-screen element
+   when it has the 'visible' class.
+   ============================ */
+#start-screen{
+  position:relative;
+  overflow:hidden;
+}
+
+/* Full-viewport star layer (static stars) - only active when start screen is visible */
+#start-screen.visible::before{
+  content: "";
+  position: fixed;       /* cover whole viewport */
+  inset: 0;
+  z-index: 0;            /* behind UI */
+  pointer-events: none;
+  background-color: rgba(5,8,10,0.6); /* deep-space tint */
+  background-image:
+    /* cluster of small faint stars */
+    radial-gradient(circle at 4% 12%, rgba(255,255,255,0.95) 0.6px, transparent 1px),
+    radial-gradient(circle at 12% 30%, rgba(255,255,255,0.85) 0.8px, transparent 1.2px),
+    radial-gradient(circle at 18% 70%, rgba(255,255,255,0.9) 0.6px, transparent 1px),
+    radial-gradient(circle at 25% 18%, rgba(255,255,255,0.7) 0.7px, transparent 1.1px),
+    radial-gradient(circle at 32% 50%, rgba(255,255,255,0.8) 0.5px, transparent 0.9px),
+    radial-gradient(circle at 38% 8%, rgba(255,255,255,0.7) 0.6px, transparent 1px),
+    radial-gradient(circle at 45% 62%, rgba(255,255,255,0.9) 1px, transparent 1.6px),
+    radial-gradient(circle at 52% 28%, rgba(255,255,255,0.85) 0.6px, transparent 1px),
+    radial-gradient(circle at 58% 80%, rgba(255,255,255,0.7) 0.6px, transparent 1px),
+    radial-gradient(circle at 64% 40%, rgba(255,255,255,0.95) 1px, transparent 1.6px),
+    radial-gradient(circle at 70% 14%, rgba(255,255,255,0.8) 0.6px, transparent 1px),
+    radial-gradient(circle at 78% 48%, rgba(255,255,255,0.9) 0.8px, transparent 1.2px),
+    radial-gradient(circle at 84% 76%, rgba(255,255,255,0.75) 0.6px, transparent 1px),
+    radial-gradient(circle at 92% 22%, rgba(255,255,255,0.85) 0.7px, transparent 1.1px),
+
+    /* a few slightly larger brighter stars */
+    radial-gradient(circle at 20% 40%, rgba(255,255,255,0.98) 1.6px, transparent 2.2px),
+    radial-gradient(circle at 50% 10%, rgba(255,230,200,0.98) 1.4px, transparent 2px),
+    radial-gradient(circle at 82% 64%, rgba(200,230,255,0.95) 1.2px, transparent 1.8px);
+
+  background-repeat: no-repeat;
+  background-size: cover;
+  transform: translateZ(0);
+  filter: saturate(0.96) contrast(1.05);
+}
+
+/* Full-viewport twinkle layer (animated) */
+#start-screen.visible::after{
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 10% 20%, rgba(255,255,255,0.06) 0.6px, transparent 1px),
+    radial-gradient(circle at 23% 70%, rgba(255,255,255,0.04) 0.7px, transparent 1.4px),
+    radial-gradient(circle at 44% 33%, rgba(255,255,255,0.05) 0.5px, transparent 1.1px),
+    radial-gradient(circle at 61% 81%, rgba(255,255,255,0.03) 0.6px, transparent 1.2px),
+    radial-gradient(circle at 80% 45%, rgba(255,255,255,0.04) 0.6px, transparent 1.1px);
+  background-repeat: no-repeat;
+  mix-blend-mode: screen;
+  opacity: 0.75;
+  animation: twinkle 6s linear infinite;
+  filter: blur(0.2px);
+}
+
+/* Shooting star fixed to viewport (only visible while start screen is active) */
+#start-screen.visible .shoot {
+  position: fixed;
+  top: 10%;
+  left: -10%;
+  width: 2px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.95), rgba(255,255,255,0.15));
+  box-shadow: 0 0 6px 2px rgba(255,255,255,0.5);
+  transform: rotate(-20deg) translateX(-40vw);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2;
+  filter: blur(0.6px);
+  animation: shooting 8s linear infinite;
+}
+
+/* subtle twinkle animation */
+@keyframes twinkle {
+  0% { opacity: 0.65; transform: translateY(0px); }
+  50% { opacity: 0.9; transform: translateY(0.5px); }
+  100% { opacity: 0.65; transform: translateY(0px); }
+}
+
+/* shooting animation */
+@keyframes shooting {
+  0%   { opacity: 0; transform: translate(-10vw, 5vh) scaleX(0.2) rotate(-22deg); }
+  60%  { opacity: 0; transform: translate(-10vw, 5vh) scaleX(0.2) rotate(-22deg); }
+  62%  { opacity: 1; transform: translate(10vw, 2vh) scaleX(1.8) rotate(-22deg); }
+  68%  { opacity: 1; transform: translate(60vw, -6vh) scaleX(2.2) rotate(-22deg); }
+  75%  { opacity: 0.05; transform: translate(100vw, -14vh) scaleX(2.6) rotate(-22deg); }
+  100% { opacity: 0; transform: translate(100vw, -14vh) scaleX(0.2) rotate(-22deg); }
+}
+
+/* Card above stars */
+#start-screen .card{
+  position: relative;
+  z-index: 3;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border: 1px solid rgba(255,255,255,0.04);
+}
+
+/* Card */
+.card{
+  border-radius:var(--radius);
+  padding:28px;
+  box-shadow: 0 6px 30px rgba(2,6,23,0.6);
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+}
+
+/* Center helper */
+.center{display:flex;flex-direction:column;align-items:center;gap:18px}
+
+.title{
+  font-size:28px;
+  letter-spacing:0.6px;
+  margin:0;
+  font-weight:600;
+}
+.subtitle{color:var(--muted); margin-top:-6px}
+
+/* Buttons */
+.controls{display:flex;gap:14px}
+.btn{
+  border:0;
+  padding:14px 26px;
+  border-radius:999px;
+  cursor:pointer;
+  transition:all var(--soft) ease;
+  font-weight:600;
+  letter-spacing:0.4px;
+}
+.btn.large{font-size:16px;padding:16px 28px}
+.btn.primary{
+  background:linear-gradient(90deg,var(--accent),var(--accent-2));
+  color:#081018;
+  box-shadow: 0 6px 18px rgba(110,231,183,0.08), inset 0 -2px 8px rgba(255,255,255,0.02);
+}
+.btn.ghost{
+  background:var(--glass);
+  color:var(--accent-2);
+  border:1px solid rgba(255,255,255,0.03);
+}
+
+.btn:active{transform:translateY(1px)}
+
+/* Modal */
+.modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:50}
+.modal.hidden{display:none}
+.modal-backdrop{position:absolute;inset:0;background:linear-gradient(180deg, rgba(0,0,0,0.6), rgba(0,0,0,0.8))}
+.modal-card{
+  position:relative;
+  z-index:10;
+  width:min(520px,92%);
+  padding:24px;
+  border-radius:12px;
+  background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+  border:1px solid rgba(255,255,255,0.03);
+  text-align:left;
+}
+.modal-card h3{margin-top:0}
+.modal-actions{display:flex;justify-content:flex-end;margin-top:14px}
+
+/* Phase 1 */
+.phase-card{max-width:520px;margin:0 auto;text-align:center}
+.phase-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;color:var(--muted)}
+.emoji-area{display:flex;justify-content:center;align-items:center;padding:20px 0}
+.emoji{font-size:92px;line-height:1}
+.input-area{display:flex;justify-content:center}
+#guess-input{
+  width:100%;
+  max-width:420px;
+  padding:14px 16px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,0.03);
+  background:transparent;
+  color:inherit;
+  outline:none;
+  box-shadow: none;
+  font-size:16px;
+}
+.buttons-row{display:flex;gap:12px;justify-content:center;margin-top:14px}
+
+/* Phase 2 layout */
+.phase2-container{
+  display:grid;
+  grid-template-columns: 1fr 320px;
+  gap:20px;
+  align-items:start;
+}
+@media (max-width:900px){
+  .phase2-container{grid-template-columns: 1fr; padding-bottom:20px}
+  .sidebar{order:2}
+}
+
+.board-card{padding:18px}
+.grid{
+  display:grid;
+  grid-template-columns: repeat(15, 1fr);
+  gap:6px;
+  touch-action:none;
+  user-select:none;
+  margin-top:12px;
+}
+.cell{
+  width:36px;
+  height:36px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:700;
+  background: rgba(255,255,255,0.02);
+  border-radius:8px;
+  cursor:pointer;
+  transition:transform var(--soft), background var(--soft), color var(--soft);
+  color:#cfe8ff;
+  font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+}
+@media (max-width:900px){
+  .cell{width:30px;height:30px;font-size:12px}
+  .grid{gap:5px}
+}
+.cell.selected{background: linear-gradient(90deg, rgba(138,180,255,0.14), rgba(110,231,183,0.06)); transform:scale(1.02)}
+.cell.found{background: linear-gradient(90deg, rgba(110,231,183,0.16), rgba(138,180,255,0.06)); color:#041118; box-shadow:inset 0 -2px 8px rgba(0,0,0,0.2)}
+.cell.wrong{animation:shake 220ms ease}
+
+@keyframes shake {
+  0%{transform:translateX(0)}
+  25%{transform:translateX(-6px)}
+  75%{transform:translateX(6px)}
+  100%{transform:translateX(0)}
+}
+
+.sidebar{padding:18px;display:flex;flex-direction:column;gap:12px}
+.word-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.word-list li{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.02);color:var(--muted);font-weight:600}
+.word-list li.found{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#042025}
+.word-list li .word{letter-spacing:0.6px}
+
+/* Score */
+.score-card{max-width:520px;margin:0 auto;text-align:center}
+.score-summary{display:flex;flex-direction:column;gap:8px;margin:10px 0}
+.total{margin-top:8px;font-size:20px}
+.grade{
+  margin-top:12px;
+  font-size:28px;
+  font-weight:800;
+  color:var(--accent-2);
+}
+
+/* small */
+.title-small{font-weight:700;color:var(--muted)}

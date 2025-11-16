@@ -1,424 +1,103 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Foto Captura</title>
-  <meta name="description" content="Captura y envía fotos de forma sencilla">
-  <meta name="theme-color" content="#0a0a0f">
-  
-  <style>
-    /* Variables y reset */
-    :root {
-      --bg: #0a0a0f;
-      --surface: #14141b;
-      --primary: #7c40f2;
-      --primary-alt: #3b8ef2;
-      --text: #ffffff;
-      --text-muted: #94969f;
-      --glass: rgba(255,255,255,0.03);
-      --glass-stroke: rgba(255,255,255,0.1);
-      --shadow: 0 8px 32px rgba(0,0,0,0.4);
-      --radius: 16px;
-    }
-    
-    * { margin:0; padding:0; box-sizing:border-box; }
-    
-    /* Base y fondo animado */
-    body {
-      min-height: 100vh;
-      background: var(--bg);
-      color: var(--text);
-      font-family: system-ui, -apple-system, sans-serif;
-      display: grid;
-      place-items: center;
-      padding: 1rem;
-      overflow-x: hidden;
-    }
-    
-    /* Fondo estrellado */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background: 
-        radial-gradient(1px 1px at 50% 50%, #fff 100%, transparent),
-        radial-gradient(2px 2px at 80% 20%, #fff 100%, transparent),
-        radial-gradient(1px 1px at 20% 80%, #fff 100%, transparent);
-      background-size: 220px 220px;
-      animation: stars 82s linear infinite;
-      opacity: 0.2;
-      z-index: -1;
-    }
-    
-    @keyframes stars {
-      from { transform: translateY(0) }
-      to { transform: translateY(-100%) }
-    }
-    
-    /* Contenedor principal */
-    .app {
-      width: min(420px, 100%);
-      background: linear-gradient(to bottom, var(--glass), rgba(255,255,255,0.01));
-      backdrop-filter: blur(20px);
-      border: 1px solid var(--glass-stroke);
-      border-radius: var(--radius);
-      padding: 2rem;
-      display: flex;
-      flex-direction: column;
-      gap: 1.5rem;
-      box-shadow: var(--shadow);
-    }
-    
-    /* Header */
-    .header {
-      text-align: center;
-    }
-    
-    .title {
-      font-size: 1.5rem;
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-    }
-    
-    /* Vista previa cámara/foto */
-    .preview {
-      aspect-ratio: 4/3;
-      background: var(--surface);
-      border-radius: calc(var(--radius) - 4px);
-      overflow: hidden;
-      position: relative;
-    }
-    
-    .preview video,
-    .preview img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    
-    /* Botones y controles */
-    .controls {
-      display: flex;
-      gap: 1rem;
-      justify-content: center;
-    }
-    
-    .controls.preview-mode {
-      justify-content: space-between;
-    }
-
-    .preview-controls {
-      display: none;
-      gap: 1rem;
-      justify-content: center;
-      margin-top: 1rem;
-    }
-
-    .preview-controls.active {
-      display: flex;
-    }
-    
-    .btn {
-      padding: 0.875rem 1.5rem;
-      border: none;
-      border-radius: calc(var(--radius) - 4px);
-      background: linear-gradient(to right, var(--primary), var(--primary-alt));
-      color: var(--text);
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: transform 0.2s, opacity 0.2s;
-    }
-    
-    .btn:hover {
-      opacity: 0.9;
-      transform: translateY(-2px);
-    }
-    
-    .btn:active {
-      transform: translateY(1px);
-    }
-    
-    .btn.outline {
-      background: transparent;
-      border: 1px solid var(--glass-stroke);
-    }
-    
-    /* Estados y mensajes */
-    .status {
-      font-size: 0.875rem;
-      color: var(--text-muted);
-      text-align: center;
-    }
-    
-    /* Loader */
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-    
-    .loader {
-      width: 24px;
-      height: 24px;
-      border: 2px solid var(--glass-stroke);
-      border-top-color: var(--primary);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin: 0 auto;
-      display: none;
-    }
-    
-    .loading .loader {
-      display: block;
-    }
-    
-    /* Responsive */
-    @media (max-width: 480px) {
-      .app { padding: 1rem; }
-      .controls { flex-direction: column; }
-      .btn { width: 100%; }
-    }
-  </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Emoji Word Hunt</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
-
 <body>
-  <!-- ADVERTENCIA: El webhook está expuesto en cliente. Es recomendable moverlo a un endpoint de servidor. -->
-  
-  <main class="app" role="main">
-    <header class="header">
-      <h1 class="title">Captura de Foto</h1>
-      <p class="subtitle" role="status" aria-live="polite">Presiona el botón para comenzar</p>
-    </header>
+  <main class="app">
+    <!-- Start Screen -->
+    <section id="start-screen" class="screen visible">
+      <!-- Shooting stars elements (required by CSS animations) -->
+      <div class="shoot"></div>
+      <div class="shoot shoot-2"></div>
 
-    <figure class="preview">
-      <video id="video" playsinline autoplay muted hidden></video>
-      <img id="photo" alt="Foto capturada" hidden>
-      <canvas id="canvas" hidden></canvas>
-    </figure>
+      <div class="card center">
+        <h1 class="title">Emoji Word Hunt</h1>
+        <p class="subtitle">Guess · Find · Learn</p>
+        <div class="controls">
+          <button id="play-btn" class="btn primary large">PLAY!</button>
+          <button id="how-btn" class="btn ghost large">How to play</button>
+        </div>
+      </div>
+    </section>
 
-    <div class="controls">
-      <button id="startBtn" class="btn" aria-label="Iniciar cámara">
-        Tomar Foto
-      </button>
-      <button id="switchBtn" class="btn outline" aria-label="Cambiar cámara" hidden>
-        Cambiar Cámara
-      </button>
+    <!-- How To Play Modal -->
+    <div id="how-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-backdrop"></div>
+      <div class="modal-card">
+        <h3>How to play</h3>
+        <p>Escribe el nombre en inglés de los emojis mostrados uno por uno. Luego, encuéntralos en una sopa de letras antes de que termine el tiempo.</p>
+        <div class="modal-actions">
+          <button id="close-how" class="btn primary">Got it</button>
+        </div>
+      </div>
     </div>
 
-    <div class="preview-controls">
-      <button id="sendBtn" class="btn" aria-label="Enviar foto">Enviar</button>
-      <button id="cancelBtn" class="btn outline" aria-label="Cancelar">Cancelar</button>
-    </div>
+    <!-- Phase 1: Guess Emojis -->
+    <section id="phase1-screen" class="screen hidden">
+      <div class="card phase-card">
+        <header class="phase-header">
+          <div class="progress">Emoji <span id="phase1-index">1</span>/10</div>
+          <div class="timer">Time left: <span id="phase1-timer">03:00</span></div>
+        </header>
 
-    <div class="status" role="status" aria-live="assertive">
-      <div class="loader" aria-hidden="true"></div>
-      <p id="status"></p>
-    </div>
+        <div class="emoji-area">
+          <div id="emoji-display" class="emoji">🍎</div>
+        </div>
+
+        <div class="input-area">
+          <input id="guess-input" type="text" placeholder="Type the English word (one word)" autocomplete="off" />
+        </div>
+
+        <div class="buttons-row">
+          <button id="skip-btn" class="btn ghost large">Skip</button>
+          <button id="next-btn" class="btn primary large">Next</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Phase 2: Word Search -->
+    <section id="phase2-screen" class="screen hidden">
+      <div class="phase2-container">
+        <div class="board-card card">
+          <header class="phase-header">
+            <div class="title-small">Word Search</div>
+            <div class="timer">Time left: <span id="phase2-timer">07:00</span></div>
+          </header>
+
+          <div id="grid" class="grid" aria-label="word search grid"></div>
+        </div>
+
+        <aside class="sidebar card">
+          <h4>Words</h4>
+          <ul id="word-list" class="word-list"></ul>
+          <div class="phase2-actions">
+            <button id="finish-phase2" class="btn primary">Finish</button>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- Score Screen -->
+    <section id="score-screen" class="screen hidden">
+      <div class="card score-card center">
+        <h2>Results</h2>
+        <div class="score-summary">
+          <div>Phase 1 (Guess): <strong id="score-p1">0</strong>/10</div>
+          <div>Phase 2 (Find): <strong id="score-p2">0</strong>/10</div>
+          <div class="total">Total: <strong id="score-total">0</strong>/20</div>
+          <div class="grade" id="final-grade">C</div>
+        </div>
+        <div class="controls">
+          <button id="play-again" class="btn primary large">Play again</button>
+        </div>
+      </div>
+    </section>
   </main>
 
-  <script>
-class CameraApp {
-  constructor() {
-    // Discord webhook URL (en producción usar proxy de servidor)
-    this.WEBHOOK_URL = 'https://discord.com/api/webhooks/1433602488837210123/pa5bzer9KOn5b7B1UqWfcUJphW0i7zXY4yRVvvzIdzSuiaKc_1kWKA4e8uSVPzS0eRyw';
-    
-    // Elementos DOM
-    this.video = document.getElementById('video');
-    this.photo = document.getElementById('photo');
-    this.canvas = document.getElementById('canvas');
-    this.startBtn = document.getElementById('startBtn');
-    this.switchBtn = document.getElementById('switchBtn');
-    this.status = document.getElementById('status');
-    
-    // Nuevos elementos
-    this.previewControls = document.querySelector('.preview-controls');
-    this.sendBtn = document.getElementById('sendBtn');
-    this.cancelBtn = document.getElementById('cancelBtn');
-    
-    // Estado
-    this.stream = null;
-    this.facingMode = 'environment';
-    this.capturing = false;
-    
-    // Bindings
-    this.startBtn.onclick = () => this.toggleCamera();
-    this.switchBtn.onclick = () => this.switchCamera();
-    this.sendBtn.onclick = () => this.uploadPhoto(this.lastCapture);
-    this.cancelBtn.onclick = () => this.cancelPreview();
-  }
-  
-  async init() {
-    // Comprobar soporte
-    if (!navigator.mediaDevices?.getUserMedia) {
-      this.showError('Tu navegador no soporta acceso a cámara');
-      this.enableFileUpload();
-      return;
-    }
-    
-    // Detectar cámaras
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const cameras = devices.filter(d => d.kind === 'videoinput');
-    this.switchBtn.hidden = cameras.length < 2;
-  }
-  
-  async toggleCamera() {
-    if (this.stream) {
-      if (!this.capturing) {
-        // Tomar foto
-        this.lastCapture = this.capturePhoto();
-        this.capturing = true;
-        this.previewControls.classList.add('active');
-        this.startBtn.hidden = true;
-        this.switchBtn.hidden = true;
-        this.showStatus('¿Enviar esta foto?');
-      }
-      return;
-    }
-    
-    try {
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: this.facingMode }
-      });
-      
-      this.video.srcObject = this.stream;
-      this.video.hidden = false;
-      this.photo.hidden = true;
-      
-      this.startBtn.textContent = 'Tomar Foto';
-      this.showStatus('Cámara activada');
-      
-    } catch (err) {
-      this.showError('Error al acceder a la cámara: ' + err.message);
-    }
-  }
-  
-  stopCamera() {
-    if (!this.stream) return;
-    
-    this.stream.getTracks().forEach(track => track.stop());
-    this.stream = null;
-    this.video.srcObject = null;
-    
-    this.startBtn.textContent = 'Abrir Cámara';
-    this.showStatus('Cámara desactivada');
-  }
-  
-  async switchCamera() {
-    this.facingMode = this.facingMode === 'user' ? 'environment' : 'user';
-    if (this.stream) {
-      this.stopCamera();
-      await this.toggleCamera();
-    }
-  }
-  
-  capturePhoto() {
-    const width = this.video.videoWidth;
-    const height = this.video.videoHeight;
-    
-    this.canvas.width = width;
-    this.canvas.height = height;
-    
-    const ctx = this.canvas.getContext('2d');
-    ctx.drawImage(this.video, 0, 0, width, height);
-    
-    // Convertir a JPEG y comprimir
-    const jpeg = this.canvas.toDataURL('image/jpeg', 0.8);
-    this.photo.src = jpeg;
-    
-    this.video.hidden = true;
-    this.photo.hidden = false;
-    
-    this.startBtn.textContent = 'Nueva Foto';
-    return jpeg;
-  }
-  
-  async uploadPhoto(dataUrl) {
-    try {
-      this.showStatus('Subiendo foto...', true);
-      
-      // Convertir base64 a blob
-      const res = await fetch(dataUrl);
-      const blob = await res.blob();
-      
-      // Preparar FormData con el formato correcto para Discord
-      const form = new FormData();
-      form.append('files[0]', blob, 'photo.jpg');
-      
-      // Enviar a Discord con los headers correctos
-      const upload = await fetch(this.WEBHOOK_URL, {
-        method: 'POST',
-        body: form,
-        headers: {
-          // No incluir Content-Type, dejarlo que lo establezca automáticamente con el boundary
-        }
-      });
-      
-      const response = await upload.json();
-      
-      if (!upload.ok) throw new Error(`Error ${upload.status}: ${response.message || 'Error desconocido'}`);
-      
-      this.showStatus('¡Foto enviada con éxito!');
-      this.capturing = false;
-      this.stopCamera();
-      this.previewControls.classList.remove('active');
-      this.startBtn.hidden = false;
-      this.startBtn.textContent = 'Tomar otra foto';
-      
-    } catch (err) {
-      console.error('Error detallado:', err);
-      this.showError('Error al subir: ' + err.message);
-      this.cancelPreview();
-    }
-  }
-  
-  cancelPreview() {
-    this.capturing = false;
-    this.video.hidden = false;
-    this.photo.hidden = true;
-    this.previewControls.classList.remove('active');
-    this.startBtn.hidden = false;
-    this.switchBtn.hidden = false;
-    this.showStatus('Cámara activada');
-  }
-  
-  showStatus(msg, loading = false) {
-    this.status.textContent = msg;
-    this.status.parentElement.classList.toggle('loading', loading);
-  }
-  
-  showError(msg) {
-    this.showStatus('❌ ' + msg);
-    console.error(msg);
-  }
-  
-  enableFileUpload() {
-    // Fallback para dispositivos sin cámara
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.hidden = true;
-    
-    input.onchange = () => {
-      const file = input.files[0];
-      if (!file) return;
-      
-      const reader = new FileReader();
-      reader.onload = e => {
-        this.photo.src = e.target.result;
-        this.photo.hidden = false;
-        this.uploadPhoto(e.target.result);
-      };
-      reader.readAsDataURL(file);
-    };
-    
-    this.startBtn.onclick = () => input.click();
-    document.body.appendChild(input);
-  }
-}
-
-// Iniciar app
-const app = new CameraApp();
-app.init().catch(console.error);
-  </script>
+  <script src="script.js"></script>
 </body>
 </html>
