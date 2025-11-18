@@ -1,7 +1,7 @@
-/* Emoji Word Hunt - script actualizado para forzar sopa 12x12
-   - Forzamos gridSize = 12 en todas las plataformas
-   - Al iniciar fase 2 se asegura que el grid DOM use 12 columnas
-   - Mantiene toda la lógica original de juego y selección
+/* Emoji Word Hunt - script actualizado para forzar sopa 12x12 y ajustar tamaño en móvil
+   - gridSize fijo a 12 (como acordado)
+   - función fitGridToViewport() para adaptar el ancho/alto del grid en móviles
+   - se llama tras renderGrid() y en startPhase2(), además en resize/orientationchange
 */
 
 /* ============================
@@ -105,6 +105,58 @@ function formatTime(sec) {
 }
 
 /* ============================
+   Fit grid to viewport (mobile fix)
+   - sets gridEl.style.width so the square grid fits available height
+   ============================ */
+function fitGridToViewport() {
+  if (!gridEl) return;
+  // Visible check: only adjust if phase2-screen visible
+  if (!phase2Screen || !phase2Screen.classList.contains("visible")) {
+    // still set default width for consistency
+    gridEl.style.width = '';
+    return;
+  }
+
+  // container where the grid sits
+  const container = gridEl.closest('.board-card') || gridEl.parentElement;
+  const containerRect = container.getBoundingClientRect();
+  const viewportW = Math.min(window.innerWidth, document.documentElement.clientWidth);
+  const viewportH = window.innerHeight;
+
+  // available width for the grid inside the container
+  let availableWidth = containerRect.width;
+  // if on desktop (two-column layout) and a sidebar exists, reduce available width by sidebar width
+  const phase2Container = document.querySelector('.phase2-container');
+  if (phase2Container && window.innerWidth > 900) {
+    // approximate sidebar width (320px + gap)
+    availableWidth = Math.max(240, phase2Container.getBoundingClientRect().width - 340);
+  } else {
+    // mobile / single column: available width is container width minus small padding
+    availableWidth = Math.max(120, availableWidth - 24);
+  }
+
+  // compute available height from grid top to bottom minus reserved UI (headers, wordlist, controls)
+  const gridTop = gridEl.getBoundingClientRect().top;
+  // estimate reserved vertical space below grid for word list, timers and padding
+  const reservedBelow = 160; // px - tweakable
+  let availableHeight = viewportH - gridTop - reservedBelow;
+  if (availableHeight < 120) {
+    // if too small, allow more space by reducing reserved
+    availableHeight = viewportH - gridTop - 120;
+  }
+
+  // compute size: must be square, choose min of availableWidth and availableHeight
+  let size = Math.floor(Math.max( Math.min(availableWidth, availableHeight), 120 )); // min 120px
+  // also cap to a reasonable max
+  const maxCap = Math.min(720, Math.floor(viewportW * 0.98));
+  if (size > maxCap) size = maxCap;
+
+  // apply size
+  gridEl.style.width = `${size}px`;
+  // ensure the grid uses our CSS columns (repeat(12,1fr)) already set in CSS; only width is modified
+}
+
+/* ============================
    NAV / SCREENS
    ============================ */
 function showScreen(screenEl) {
@@ -150,7 +202,6 @@ function startPhase1() {
     }
   }, 1000);
 }
-
 function onGuessKeydown(e) {
   if (e.key === "Enter") {
     e.preventDefault();
@@ -158,7 +209,6 @@ function onGuessKeydown(e) {
     setTimeout(() => guessInput.classList.remove("blocked"), 250);
   }
 }
-
 function updatePhase1UI() {
   const current = chosenSet[currentIndex];
   phase1IndexEl.textContent = `${currentIndex + 1}`;
@@ -166,7 +216,6 @@ function updatePhase1UI() {
   guessInput.value = "";
   guessInput.focus();
 }
-
 function handleNext() {
   const val = guessInput.value.trim().toLowerCase();
   const target = chosenSet[currentIndex].w.toLowerCase();
@@ -180,7 +229,6 @@ function handleNext() {
   }
   updatePhase1UI();
 }
-
 function handleSkip() {
   chosenSet[currentIndex].answerGiven = "";
   chosenSet[currentIndex].guessed = false;
@@ -204,11 +252,12 @@ function startPhase2() {
   gridSize = 12;
   if (gridEl) {
     gridEl.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
-    // ensure the CSS width/aspect-ratio rules also apply; CSS handles sizing
+    // Clear any previously set width so fitGridToViewport can compute correctly
+    gridEl.style.width = '';
   }
 
   const words = chosenSet.map(x => x.w.toUpperCase());
-  // If any word is longer than gridSize, log and truncate to avoid placement failure.
+  // If any word is longer than gridSize, truncate to avoid placement failure.
   const safeWords = words.map(w => {
     if (w.length > gridSize) {
       console.warn(`Word "${w}" longer than ${gridSize} — truncating to fit the grid.`);
@@ -220,6 +269,10 @@ function startPhase2() {
   generateGrid(gridSize, safeWords);
   renderGrid();
   renderWordList();
+
+  // Adjust grid size to fit viewport (mobile fix). Use a slight delay for layout to settle.
+  setTimeout(fitGridToViewport, 40);
+
   phase2TimerEl.textContent = formatTime(phase2TimeLeft);
   if (phase2Timer) clearInterval(phase2Timer);
   phase2Timer = setInterval(() => {
@@ -330,6 +383,9 @@ function renderGrid() {
     }
   }
   attachSelectionListeners();
+
+  // After rendering, adjust size to fit viewport (small timeout to let layout settle)
+  setTimeout(fitGridToViewport, 30);
 }
 
 /* Lista lateral: muestra palabra completa si acertaste en fase1, o truncada si no */
@@ -358,7 +414,7 @@ function renderWordList() {
 
 /* ============================
    SELECCIÓN (mouse & touch)
-   - Implementación robusta usando pointerdown en grid + pointermove/pointerup global
+   - Implementación robusta usando pointerdown in grid + pointermove/pointerup
    ============================ */
 
 let selecting = false;
@@ -563,9 +619,18 @@ function initEventHandlers() {
   if (skipBtn) skipBtn.addEventListener("click", handleSkip);
   if (finishPhase2Btn) finishPhase2Btn.addEventListener("click", handleFinishPhase2);
   if (playAgainBtn) playAgainBtn.addEventListener("click", resetGame);
+
+  // update grid fit on resize/orientation change
+  window.addEventListener('resize', () => {
+    // small throttle
+    if (this._fitTimeout) clearTimeout(this._fitTimeout);
+    this._fitTimeout = setTimeout(() => fitGridToViewport(), 80);
+  });
+  window.addEventListener('orientationchange', () => setTimeout(fitGridToViewport, 120));
+
   document.addEventListener("keydown", (e) => { if (e.key === "Enter" && document.activeElement === guessInput) { e.preventDefault(); } });
 }
 function init() {
-  try { initElements(); initEventHandlers(); if (startScreen) showScreen(startScreen); console.log("Emoji Word Hunt initialized (12x12)."); } catch (err) { console.error("Initialization error:", err); }
+  try { initElements(); initEventHandlers(); if (startScreen) showScreen(startScreen); console.log("Emoji Word Hunt initialized (12x12 + fitGrid)."); } catch (err) { console.error("Initialization error:", err); }
 }
 document.addEventListener("DOMContentLoaded", init);
