@@ -1,9 +1,7 @@
-/* Emoji Word Hunt - completo
-   - HTML/CSS/JS puro
-   - Fase1: adivinar 10 emojis (3 min)
-   - Fase2: sopa de letras dinámica (7 min)
-   - Selección por click y arrastre compatible con mouse y touch
-   - Inicialización segura y código comentado
+/* Emoji Word Hunt - script actualizado para forzar sopa 12x12
+   - Forzamos gridSize = 12 en todas las plataformas
+   - Al iniciar fase 2 se asegura que el grid DOM use 12 columnas
+   - Mantiene toda la lógica original de juego y selección
 */
 
 /* ============================
@@ -16,7 +14,7 @@ const EMOJI_LIST = [
   { e: "🪑", w: "chair" },
   { e: "🛋️", w: "couch" },
   { e: "🛏️", w: "bed" },
-  { e: "💡", w: "lamp" },
+  { e: "💡", w: "bulb" },
   { e: "📱", w: "phone" },
   { e: "🔑", w: "key" },
   { e: "⏰", w: "clock" },
@@ -24,7 +22,7 @@ const EMOJI_LIST = [
   { e: "💻", w: "laptop" },
   { e: "🖱️", w: "mouse" },
   { e: "⌨️", w: "keyboard" },
-  { e: "🖥️", w: "monitor" },
+  { e: "🖥️", w: "computer" },
   { e: "🎧", w: "headphones" },
   { e: "📷", w: "camera" },
   { e: "🎸", w: "guitar" },
@@ -40,7 +38,7 @@ const EMOJI_LIST = [
   { e: "🧼", w: "soap" },
   { e: "🥤", w: "bottle" },
   { e: "🍽️", w: "plate" },
-  { e: "🍴", w: "fork" },
+  { e: "🍴", w: "cutlery" },
   { e: "🥄", w: "spoon" },
   { e: "🔦", w: "flashlight" },
   { e: "🕯️", w: "candle" },
@@ -63,7 +61,7 @@ const EMOJI_LIST = [
 ];
 
 /* ============================
-   ELEMENTOS DOM (asignados en init)
+   ELEMENTOS DOM
    ============================ */
 let startScreen, phase1Screen, phase2Screen, scoreScreen;
 let playBtn, howBtn, howModal, closeHow;
@@ -82,10 +80,12 @@ let phase1TimeLeft = 180;
 let phase2Timer = null;
 let phase2TimeLeft = 420;
 
-let gridSize = 15;
+/* FORCE: set gridSize fixed to 12 for all devices */
+let gridSize = 12;
+
 let grid = [];
 let placedWords = [];
-let cellElements = {}; // "r-c" => elemento
+let cellElements = {}; // "r-c" => element
 
 /* ============================
    UTILIDADES
@@ -105,7 +105,7 @@ function formatTime(sec) {
 }
 
 /* ============================
-   NAVEGACIÓN / PANTALLAS
+   NAV / SCREENS
    ============================ */
 function showScreen(screenEl) {
   const screens = [startScreen, phase1Screen, phase2Screen, scoreScreen];
@@ -132,7 +132,7 @@ function prepareGame() {
 }
 
 /* ============================
-   FASE 1 - ADIVINAR EMOJIS
+   PHASE 1 - ADIVINAR EMOJIS
    ============================ */
 function startPhase1() {
   showScreen(phase1Screen);
@@ -194,13 +194,30 @@ function handleSkip() {
 }
 
 /* ============================
-   FASE 2 - SOPA DE LETRAS
+   PHASE 2: force 12x12 and generate
    ============================ */
 function startPhase2() {
   showScreen(phase2Screen);
   if (phase1Timer) { clearInterval(phase1Timer); phase1Timer = null; }
+
+  // FORCE gridSize to 12 and update DOM grid columns so CSS matches JS
+  gridSize = 12;
+  if (gridEl) {
+    gridEl.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+    // ensure the CSS width/aspect-ratio rules also apply; CSS handles sizing
+  }
+
   const words = chosenSet.map(x => x.w.toUpperCase());
-  generateGrid(gridSize, words);
+  // If any word is longer than gridSize, log and truncate to avoid placement failure.
+  const safeWords = words.map(w => {
+    if (w.length > gridSize) {
+      console.warn(`Word "${w}" longer than ${gridSize} — truncating to fit the grid.`);
+      return w.slice(0, gridSize);
+    }
+    return w;
+  });
+
+  generateGrid(gridSize, safeWords);
   renderGrid();
   renderWordList();
   phase2TimerEl.textContent = formatTime(phase2TimeLeft);
@@ -277,7 +294,6 @@ function generateGrid(size, words) {
         }
       }
       if (!placed) {
-        // last resort
         const coords = [];
         for (let k = 0; k < Math.min(w.length, size); k++) {
           coords.push({ r: 0, c: k });
@@ -298,6 +314,7 @@ function generateGrid(size, words) {
 
 /* Renderiza la cuadrícula y almacena referencias a las celdas */
 function renderGrid() {
+  if (!gridEl) return;
   gridEl.innerHTML = "";
   gridEl.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
   cellElements = {};
@@ -317,6 +334,7 @@ function renderGrid() {
 
 /* Lista lateral: muestra palabra completa si acertaste en fase1, o truncada si no */
 function renderWordList() {
+  if (!wordListEl) return;
   wordListEl.innerHTML = "";
   for (let i = 0; i < placedWords.length; i++) {
     const pw = placedWords[i];
@@ -341,7 +359,6 @@ function renderWordList() {
 /* ============================
    SELECCIÓN (mouse & touch)
    - Implementación robusta usando pointerdown en grid + pointermove/pointerup global
-   - Funciona en laptop y en dispositivos táctiles
    ============================ */
 
 let selecting = false;
@@ -349,51 +366,37 @@ let selStart = null;
 let selCurrent = null;
 let highlighted = [];
 
-/* Obtiene la celda debajo de unas coordenadas cliente */
 function cellFromPoint(clientX, clientY) {
   const el = document.elementFromPoint(clientX, clientY);
   if (!el) return null;
   return el.closest && el.closest(".cell");
 }
 
-/* Adjunta listeners al grid (un único handler para pointerdown) */
 function attachSelectionListeners() {
-  // Remove previous event listeners by replacing grid children clones (cheap cleanup)
-  // Note: renderGrid ya reconstruyó las celdas, así que normalmente no hay listeners
+  if (!gridEl) return;
   gridEl.style.touchAction = "none";
   gridEl.removeEventListener("pointerdown", onPointerDown);
   gridEl.addEventListener("pointerdown", onPointerDown, { passive: false });
-  // ensure no stale global listeners
   window.removeEventListener("pointermove", onPointerMove);
   window.removeEventListener("pointerup", onPointerUp);
 }
 
 function onPointerDown(e) {
-  // only primary mouse button
   if (e.pointerType === "mouse" && e.button !== 0) return;
-
-  // Prevent default to avoid text selection / scroll during touch drag
   e.preventDefault();
-
   const cell = cellFromPoint(e.clientX, e.clientY);
   if (!cell) return;
   const r = parseInt(cell.dataset.r, 10);
   const c = parseInt(cell.dataset.c, 10);
   if (Number.isNaN(r) || Number.isNaN(c)) return;
-
   selecting = true;
   selStart = { r, c };
   selCurrent = { r, c };
-
   clearTemporarySelection();
   highlightPath(selStart, selCurrent);
-
-  // start global listeners
   window.addEventListener("pointermove", onPointerMove, { passive: false });
   window.addEventListener("pointerup", onPointerUp, { passive: false });
-
-  // try capture pointer to continue receiving events
-  try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+  try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
 }
 
 function onPointerMove(e) {
@@ -404,7 +407,6 @@ function onPointerMove(e) {
   const r = parseInt(cell.dataset.r, 10);
   const c = parseInt(cell.dataset.c, 10);
   if (Number.isNaN(r) || Number.isNaN(c)) return;
-
   if (!selCurrent || selCurrent.r !== r || selCurrent.c !== c) {
     selCurrent = { r, c };
     clearTemporarySelection();
@@ -418,14 +420,11 @@ function onPointerUp(e) {
   selecting = false;
   window.removeEventListener("pointermove", onPointerMove);
   window.removeEventListener("pointerup", onPointerUp);
-
   const selectedCells = [...highlighted];
   if (selectedCells.length === 0) { clearTemporarySelection(); return; }
-
   const letters = selectedCells.map(el => el.textContent).join("");
   const reversed = letters.split("").reverse().join("");
   const match = placedWords.find(pw => !pw.found && (pw.word === letters || pw.word === reversed));
-
   if (match) {
     markFound(match);
     checkAllFound();
@@ -435,17 +434,14 @@ function onPointerUp(e) {
       setTimeout(() => el.classList.remove("wrong"), 300);
     });
   }
-
   highlighted.forEach(el => el.classList.remove("selected"));
   highlighted = [];
 }
 
-/* Construye una línea recta (8 direcciones) entre start y current y marca celdas */
 function highlightPath(start, current) {
   if (!start || !current) return;
   const dr = current.r - start.r;
   const dc = current.c - start.c;
-
   let stepR = 0, stepC = 0;
   if (dr === 0 && dc === 0) { stepR = 0; stepC = 0; }
   else if (dr === 0) { stepR = 0; stepC = Math.sign(dc); }
@@ -455,10 +451,8 @@ function highlightPath(start, current) {
     if (Math.abs(dr) > Math.abs(dc)) { stepR = Math.sign(dr); stepC = 0; }
     else { stepR = 0; stepC = Math.sign(dc); }
   }
-
   let r = start.r, c = start.c;
   const path = [{ r, c }];
-
   if (!(stepR === 0 && stepC === 0)) {
     while (!(r === current.r && c === current.c)) {
       r += stepR;
@@ -468,7 +462,6 @@ function highlightPath(start, current) {
       if (path.length > gridSize + 5) break;
     }
   }
-
   highlighted.forEach(el => el.classList.remove("selected"));
   highlighted = [];
   for (const p of path) {
@@ -485,7 +478,7 @@ function clearTemporarySelection() {
   highlighted = [];
 }
 
-/* Marca palabra encontrada (resalta y actualiza lista) */
+/* markFound / checkAllFound / endGame / resetGame */
 function markFound(pw) {
   pw.found = true;
   for (const coord of pw.coords) {
@@ -496,24 +489,16 @@ function markFound(pw) {
   const li = document.getElementById(`word-${liIndex}`);
   if (li) li.classList.add("found");
 }
-
-/* Comprueba si todas las palabras fueron encontradas */
 function checkAllFound() {
   if (placedWords.every(p => p.found)) {
     if (phase2Timer) { clearInterval(phase2Timer); phase2Timer = null; }
     endGame();
   }
 }
-
-/* Botón Finish en fase 2 */
 function handleFinishPhase2() {
   if (phase2Timer) { clearInterval(phase2Timer); phase2Timer = null; }
   endGame();
 }
-
-/* ============================
-   FIN DEL JUEGO: puntuación y pantalla final
-   ============================ */
 function endGame() {
   const p1 = chosenSet.filter(x => x.guessed).length;
   const p2 = placedWords.filter(x => x.found).length;
@@ -521,20 +506,14 @@ function endGame() {
   scoreP1.textContent = p1;
   scoreP2.textContent = p2;
   scoreTotal.textContent = total;
-
   let grade = "C";
   if (total <= 5) grade = "C";
   else if (total <= 10) grade = "B";
   else if (total <= 15) grade = "A";
   else grade = "S";
   finalGrade.textContent = grade;
-
   showScreen(scoreScreen);
 }
-
-/* ============================
-   RESET / Play again
-   ============================ */
 function resetGame() {
   if (phase1Timer) { clearInterval(phase1Timer); phase1Timer = null; }
   if (phase2Timer) { clearInterval(phase2Timer); phase2Timer = null; }
@@ -549,93 +528,44 @@ function resetGame() {
   showScreen(startScreen);
 }
 
-/* ============================
-   EVENT WIRING: init
-   ============================ */
+/* init wiring */
 function initElements() {
   startScreen = document.getElementById("start-screen");
   phase1Screen = document.getElementById("phase1-screen");
   phase2Screen = document.getElementById("phase2-screen");
   scoreScreen = document.getElementById("score-screen");
-
   playBtn = document.getElementById("play-btn");
   howBtn = document.getElementById("how-btn");
   howModal = document.getElementById("how-modal");
   closeHow = document.getElementById("close-how");
-
   emojiDisplay = document.getElementById("emoji-display");
   phase1IndexEl = document.getElementById("phase1-index");
   guessInput = document.getElementById("guess-input");
   nextBtn = document.getElementById("next-btn");
   skipBtn = document.getElementById("skip-btn");
   phase1TimerEl = document.getElementById("phase1-timer");
-
   gridEl = document.getElementById("grid");
   wordListEl = document.getElementById("word-list");
   phase2TimerEl = document.getElementById("phase2-timer");
   finishPhase2Btn = document.getElementById("finish-phase2");
-
   scoreP1 = document.getElementById("score-p1");
   scoreP2 = document.getElementById("score-p2");
   scoreTotal = document.getElementById("score-total");
   finalGrade = document.getElementById("final-grade");
   playAgainBtn = document.getElementById("play-again");
 }
-
 function initEventHandlers() {
   if (!playBtn) { console.error("playBtn not found"); return; }
-  playBtn.addEventListener("click", () => {
-    try {
-      prepareGame();
-      startPhase1();
-    } catch (err) {
-      console.error("Error starting game:", err);
-      alert("Error starting the game. Revisa la consola.");
-    }
-  });
-
-  if (howBtn && howModal) {
-    howBtn.addEventListener("click", () => {
-      howModal.classList.remove("hidden");
-      howModal.setAttribute("aria-hidden", "false");
-    });
-  }
-  if (closeHow && howModal) {
-    closeHow.addEventListener("click", () => {
-      howModal.classList.add("hidden");
-      howModal.setAttribute("aria-hidden", "true");
-    });
-  }
-
+  playBtn.addEventListener("click", () => { try { prepareGame(); startPhase1(); } catch (err) { console.error("Error starting game:", err); alert("Error starting the game. Revisa la consola."); } });
+  if (howBtn && howModal) { howBtn.addEventListener("click", () => { howModal.classList.remove("hidden"); howModal.setAttribute("aria-hidden", "false"); }); }
+  if (closeHow && howModal) { closeHow.addEventListener("click", () => { howModal.classList.add("hidden"); howModal.setAttribute("aria-hidden", "true"); }); }
   if (nextBtn) nextBtn.addEventListener("click", handleNext);
   if (skipBtn) skipBtn.addEventListener("click", handleSkip);
   if (finishPhase2Btn) finishPhase2Btn.addEventListener("click", handleFinishPhase2);
   if (playAgainBtn) playAgainBtn.addEventListener("click", resetGame);
-
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && document.activeElement === guessInput) {
-      e.preventDefault();
-    }
-  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Enter" && document.activeElement === guessInput) { e.preventDefault(); } });
 }
-
 function init() {
-  try {
-    initElements();
-    initEventHandlers();
-    if (startScreen) showScreen(startScreen);
-    console.log("Emoji Word Hunt initialized successfully.");
-  } catch (err) {
-    console.error("Initialization error:", err);
-  }
+  try { initElements(); initEventHandlers(); if (startScreen) showScreen(startScreen); console.log("Emoji Word Hunt initialized (12x12)."); } catch (err) { console.error("Initialization error:", err); }
 }
-
 document.addEventListener("DOMContentLoaded", init);
-
-/* Notes:
- - La selección en fase 2 ahora usa elementFromPoint en pointermove para detectar celdas
-   y funciona con mouse (click+drag) y touch (arrastrar con el dedo).
- - La sopa de letras se genera dinámicamente en JS; la lista lateral muestra
-   palabras completas si se adivinaron en fase 1 o truncadas (3 letras + …) si no.
- - Código modular y comentado para facilitar cambios.
-*/
