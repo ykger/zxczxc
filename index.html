@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Emoji Word Hunt</title>
+  <title>Guess n Seek</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -16,7 +16,7 @@
 
       <div class="card center">
         <h1 class="title">Guess n Seek</h1>
-        <p class="subtitle">Guess </p>
+        <p class="subtitle">1°2</p>
         <div class="controls">
           <button id="play-btn" class="btn primary large">PLAY!</button>
           <button id="how-btn" class="btn ghost large">How to play</button>
@@ -29,9 +29,9 @@
       <div class="modal-backdrop"></div>
       <div class="modal-card">
         <h3>Tutorial</h3>
-        <p>Escribe el nombre en inglés de los emojis (objetos), no abreviaciones ni plurales. Luego, encuentra las palabras en la sopa de letras.
-          Si te equivocas, las palabras en la sopa de letras se mostrarán con las primeras tres letras. 
-        EJ: Camera -> Cam... </p>
+        <p>Write the name in English of the emojis (objects), without abbreviations or plurals. Then, find the words in the word search.
+If you make a mistake, the words in the word search will be shown with the first three letters.
+EX: Camera → Cam... </p>
         <div class="modal-actions">
           <button id="close-how" class="btn primary">OK</button>
         </div>
@@ -86,10 +86,10 @@
     <!-- Score Screen -->
     <section id="score-screen" class="screen hidden">
       <div class="card score-card center">
-        <h2>Results</h2>
+        <h2>Score</h2>
         <div class="score-summary">
           <div>Phase 1 (Guess): <strong id="score-p1">0</strong>/10</div>
-          <div>Phase 2 (Find): <strong id="score-p2">0</strong>/10</div>
+          <div>Phase 2 (Word Search): <strong id="score-p2">0</strong>/10</div>
           <div class="total">Total: <strong id="score-total">0</strong>/20</div>
           <div class="grade" id="final-grade">C</div>
         </div>
