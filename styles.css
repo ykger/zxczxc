@@ -82,7 +82,15 @@ body{
 }
 
 /* Card */
-#start-screen .card{ position:relative; z-index:3; background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.04); border-radius:var(--radius); padding:28px; box-shadow: 0 6px 30px rgba(2,6,23,0.6); }
+#start-screen .card{
+  position:relative;
+  z-index:3;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border:1px solid rgba(255,255,255,0.04);
+  border-radius:var(--radius);
+  padding:28px;
+  box-shadow: 0 6px 30px rgba(2,6,23,0.6);
+}
 
 /* helpers */
 .center{display:flex;flex-direction:column;align-items:center;gap:18px}
@@ -101,6 +109,8 @@ body{
 .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:50}
 .modal.hidden{display:none}
 .modal-backdrop{position:absolute;inset:0;background:linear-gradient(180deg, rgba(0,0,0,0.6), rgba(0,0,0,0.8))}
+
+/* modal card: opaco (no transparente) */
 .modal-card{
   position: relative;
   z-index: 70;
@@ -192,6 +202,48 @@ body{
   100%{transform:translateX(0)}
 }
 
+/* --- Mobile adjustments para que la sopa de letras quepa en pantalla --- */
+@media (max-width: 900px) {
+  /* Hacemos el card y su padding más pequeños para ganar espacio vertical */
+  #start-screen .card,
+  .board-card.card,
+  .sidebar.card {
+    padding: 16px;
+  }
+
+  /* Grid: menor ancho, menos gap, altura limitada y scroll si es necesario */
+  .grid {
+    width: min(86vw, 340px);        /* reduce el ancho en móviles */
+    gap: 4px;
+    aspect-ratio: 1 / 1;
+    max-height: calc(100vh - 220px); /* deja espacio para header/wordlist/controls */
+    overflow: auto;                 /* permite scroll dentro del grid si sigue siendo grande */
+    margin: 8px auto 12px auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Celdas: fuente más pequeña, padding reducido */
+  .cell {
+    font-size: clamp(9px, 3.2vw, 13px);
+    border-radius: 6px;
+  }
+
+  /* Sidebar (lista de palabras): quepa y tenga scroll propio si es necesario */
+  .sidebar {
+    padding: 12px;
+    max-height: calc(100vh - 140px);
+    overflow: auto;
+  }
+
+  /* Reduce tamaño de títulos y espacio para ahorrar altura */
+  .title { font-size: 22px; }
+  .subtitle { font-size: 13px; }
+
+  /* Ajuste general: reduce gap entre botones y card */
+  .card { gap: 12px; }
+}
+
+/* Sidebar / word list */
 .sidebar{padding:18px;display:flex;flex-direction:column;gap:12px}
 .word-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
 .word-list li{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.02);color:var(--muted);font-weight:600}
