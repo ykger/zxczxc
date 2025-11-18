@@ -15,8 +15,8 @@
       <div class="shoot shoot-2"></div>
 
       <div class="card center">
-        <h1 class="title">Emoji Word Hunt</h1>
-        <p class="subtitle">Guess · Find · Learn</p>
+        <h1 class="title">Guess n Seek</h1>
+        <p class="subtitle">Guess </p>
         <div class="controls">
           <button id="play-btn" class="btn primary large">PLAY!</button>
           <button id="how-btn" class="btn ghost large">How to play</button>
@@ -28,10 +28,12 @@
     <div id="how-modal" class="modal hidden" aria-hidden="true">
       <div class="modal-backdrop"></div>
       <div class="modal-card">
-        <h3>How to play</h3>
-        <p>Escribe el nombre en inglés de los emojis mostrados uno por uno. Luego, encuéntralos en una sopa de letras antes de que termine el tiempo.</p>
+        <h3>Tutorial</h3>
+        <p>Escribe el nombre en inglés de los emojis (objetos), no abreviaciones ni plurales. Luego, encuentra las palabras en la sopa de letras.
+          Si te equivocas, las palabras en la sopa de letras se mostrarán con las primeras tres letras. 
+        EJ: Camera -> Cam... </p>
         <div class="modal-actions">
-          <button id="close-how" class="btn primary">Got it</button>
+          <button id="close-how" class="btn primary">OK</button>
         </div>
       </div>
     </div>
@@ -40,7 +42,7 @@
     <section id="phase1-screen" class="screen hidden">
       <div class="card phase-card">
         <header class="phase-header">
-          <div class="progress">Emoji <span id="phase1-index">1</span>/10</div>
+          <div class="progress">Word <span id="phase1-index">1</span>/10</div>
           <div class="timer">Time left: <span id="phase1-timer">03:00</span></div>
         </header>
 
@@ -49,7 +51,7 @@
         </div>
 
         <div class="input-area">
-          <input id="guess-input" type="text" placeholder="Type the English word (one word)" autocomplete="off" />
+          <input id="guess-input" type="text" placeholder="..." autocomplete="off" />
         </div>
 
         <div class="buttons-row">
